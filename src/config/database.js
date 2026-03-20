@@ -46,6 +46,16 @@ const userOps = {
     return db.data.users.find(u => u.id === id);
   },
 
+  findByPhone: async (phone) => {
+    await db.read();
+    return db.data.users.find(u => u.phone === phone);
+  },
+
+  findByWechat: async (openid) => {
+    await db.read();
+    return db.data.users.find(u => u.wechatOpenid === openid);
+  },
+
   create: async (user) => {
     await db.read();
     const id = db.data.users.length > 0

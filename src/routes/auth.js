@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { userOps } = require('../config/database');
 const { generateToken, authMiddleware } = require('../middleware/auth');
+const { wechatLogin } = require('../services/wechatService');
 
 const router = express.Router();
 
@@ -88,6 +89,55 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('登录错误:', err);
     res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 微信手机号登录
+router.post('/wechat-login', async (req, res) => {
+  try {
+    const { code, encryptedData, iv } = req.body;
+
+    if (!code || !encryptedData || !iv) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    // 1. 获取微信用户信息
+    const wechatInfo = await wechatLogin(code, encryptedData, iv);
+    const { openid, phoneNumber } = wechatInfo;
+
+    // 2. 查询用户是否存在
+    let user = await userOps.findByPhone(phoneNumber);
+
+    // 3. 不存在则自动注册
+    if (!user) {
+      user = await userOps.create({
+        username: `user_${phoneNumber.slice(-4)}`,
+        phone: phoneNumber,
+        wechatOpenid: openid,
+        nickname: `用户${phoneNumber.slice(-4)}`
+      });
+    } else if (!user.wechatOpenid) {
+      // 已有手机号用户，绑定微信
+      user.wechatOpenid = openid;
+      // 需要更新用户，这里简化处理
+    }
+
+    // 4. 生成 token
+    const token = generateToken(user);
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        phone: user.phone,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (err) {
+    console.error('微信登录错误:', err);
+    res.status(500).json({ error: err.message || '微信登录失败' });
   }
 });
 

@@ -1,0 +1,18 @@
+{
+  "name": "weather-banlv-backend",
+  "version": "1.0.0",
+  "description": "天气伴旅后端服务",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "lowdb": "^7.0.1"
+  }
+}

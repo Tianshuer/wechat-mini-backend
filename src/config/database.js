@@ -17,7 +17,8 @@ if (!fs.existsSync(dataDir)) {
 const defaultData = {
   users: [],
   favorites: [],
-  history: []
+  history: [],
+  trips: []
 };
 
 // 创建数据库实例
@@ -147,10 +148,59 @@ const historyOps = {
   }
 };
 
+// 行程相关操作
+const tripOps = {
+  findByUser: async (userId) => {
+    await db.read();
+    const trips = db.data.trips.filter(t => t.userId === userId);
+    // 按创建时间倒序，返回最新的一个
+    return trips.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+  },
+
+  create: async (userId, tripData) => {
+    await db.read();
+    const id = db.data.trips.length > 0
+      ? Math.max(...db.data.trips.map(t => t.id)) + 1
+      : 1;
+    const trip = {
+      id,
+      userId,
+      ...tripData,
+      createdAt: new Date().toISOString()
+    };
+    db.data.trips.push(trip);
+    await db.write();
+    return trip;
+  },
+
+  update: async (id, userId, tripData) => {
+    await db.read();
+    const index = db.data.trips.findIndex(t => t.id === id && t.userId === userId);
+    if (index > -1) {
+      db.data.trips[index] = { ...db.data.trips[index], ...tripData, updatedAt: new Date().toISOString() };
+      await db.write();
+      return db.data.trips[index];
+    }
+    return null;
+  },
+
+  delete: async (id, userId) => {
+    await db.read();
+    const index = db.data.trips.findIndex(t => t.id === id && t.userId === userId);
+    if (index > -1) {
+      db.data.trips.splice(index, 1);
+      await db.write();
+      return true;
+    }
+    return false;
+  }
+};
+
 module.exports = {
   db,
   initDB,
   userOps,
   favoriteOps,
-  historyOps
+  historyOps,
+  tripOps
 };

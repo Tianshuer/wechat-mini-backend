@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth');
 const weatherRoutes = require('./routes/weather');
 const favoritesRoutes = require('./routes/favorites');
 const historyRoutes = require('./routes/history');
+const tripsRoutes = require('./routes/trips');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/history', historyRoutes);
+app.use('/api/trips', tripsRoutes);
 
 // 404 处理
 app.use((req, res) => {

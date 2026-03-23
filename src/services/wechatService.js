@@ -21,6 +21,31 @@ function httpsGet(url) {
   });
 }
 
+// 发送 POST 请求
+function httpsPost(url, postData) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify(postData));
+    req.end();
+  });
+}
+
 // 获取 session_key
 async function getSessionKey(code) {
   const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${APP_ID}&secret=${APP_SECRET}&js_code=${code}&grant_type=authorization_code`;
@@ -33,39 +58,29 @@ async function getSessionKey(code) {
   return data;
 }
 
-// 解密手机号
-function decryptPhoneNumber(sessionKey, encryptedData, iv) {
-  try {
-    // Base64 解码
-    const sessionKeyBuffer = Buffer.from(sessionKey, 'base64');
-    const encryptedDataBuffer = Buffer.from(encryptedData, 'base64');
-    const ivBuffer = Buffer.from(iv, 'base64');
+// 微信手机号登录 (新版本)
+async function wechatLogin(code) {
+  // 1. 获取 access_token
+  const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${APP_ID}&secret=${APP_SECRET}`;
+  const tokenData = await httpsGet(tokenUrl);
 
-    // 解密
-    const decipher = crypto.createDecipheriv('aes-128-cbc', sessionKeyBuffer, ivBuffer);
-    let decrypted = decipher.update(encryptedDataBuffer, null, 'utf8');
-    decrypted += decipher.final('utf8');
-
-    const data = JSON.parse(decrypted);
-    return data.phoneNumber;
-  } catch (e) {
-    console.error('解密手机号失败:', e);
-    throw new Error('解密手机号失败');
+  if (tokenData.errcode) {
+    throw new Error(`获取access_token失败: ${tokenData.errmsg}`);
   }
-}
 
-// 微信手机号登录
-async function wechatLogin(code, encryptedData, iv) {
-  // 1. 获取 session_key 和 openid
-  const sessionData = await getSessionKey(code);
-  const { session_key, openid } = sessionData;
+  const accessToken = tokenData.access_token;
 
-  // 2. 解密手机号
-  const phoneNumber = decryptPhoneNumber(session_key, encryptedData, iv);
+  // 2. 通过 code 获取手机号
+  const phoneUrl = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`;
+  const phoneData = await httpsPost(phoneUrl, { code });
+
+  if (phoneData.errcode) {
+    throw new Error(`获取手机号失败: ${phoneData.errmsg} (errcode: ${phoneData.errcode})`);
+  }
 
   return {
-    openid,
-    phoneNumber
+    openid: '', // 新接口不返回 openid，通过 code 换手机号时不需要
+    phoneNumber: phoneData.phone_info.phoneNumber
   };
 }
 
